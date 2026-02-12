@@ -1,5 +1,5 @@
 import { db } from "./turso";
-import { users, employees } from "../db/schema";
+import { users, employees, payslips } from "../db/schema";
 import { eq, and, like, or, count } from "drizzle-orm";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
@@ -11,6 +11,12 @@ export type CreateEmployeeParams = Omit<
   "id" | "createdAt" | "updatedAt"
 >;
 export type UpdateEmployeeParams = Partial<CreateEmployeeParams>;
+
+export type Payslip = InferSelectModel<typeof payslips>;
+export type CreatePayslipParams = Omit<
+  InferInsertModel<typeof payslips>,
+  "id" | "createdAt" | "updatedAt"
+>;
 
 export interface CreateUserParams {
   email: string;
@@ -223,4 +229,44 @@ export async function getActiveEmployeeCount(): Promise<number> {
     .where(eq(employees.isActive, true));
 
   return result[0].count;
+}
+
+// ========== 給与明細操作 ==========
+
+/**
+ * 給与明細登録
+ */
+export async function createPayslip(
+  params: CreatePayslipParams
+): Promise<Payslip> {
+  const result = await db
+    .insert(payslips)
+    .values({
+      ...params,
+    })
+    .returning();
+
+  return result[0];
+}
+
+/**
+ * 重複チェック（同一従業員・同一年月）
+ */
+export async function checkDuplicatePayslip(
+  employeeId: number,
+  workYear: number,
+  workMonth: number
+): Promise<boolean> {
+  const result = await db
+    .select({ count: count() })
+    .from(payslips)
+    .where(
+      and(
+        eq(payslips.employeeId, employeeId),
+        eq(payslips.workYear, workYear),
+        eq(payslips.workMonth, workMonth)
+      )
+    );
+
+  return result[0].count > 0;
 }
