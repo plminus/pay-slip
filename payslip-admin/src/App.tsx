@@ -9,6 +9,8 @@ import Dashboard from "./pages/Dashboard";
 import EmployeeList from "./pages/employees/EmployeeList";
 import PayslipCreate from "./pages/payslips/PayslipCreate";
 import PayslipList from "./pages/payslips/PayslipList";
+import YearEndAdjustmentList from "./pages/year-end-adjustment/YearEndAdjustmentList";
+import YearEndAdjustmentForm from "./pages/year-end-adjustment/YearEndAdjustmentForm";
 
 // 認証が必要なルートを保護するコンポーネント
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -118,7 +120,27 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AppLayout>
-                    <div>年末調整ページ（実装予定）</div>
+                    <YearEndAdjustmentList />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/year-end-adjustment/create"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <YearEndAdjustmentForm />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/year-end-adjustment/:id/edit"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <YearEndAdjustmentForm />
                   </AppLayout>
                 </ProtectedRoute>
               }
