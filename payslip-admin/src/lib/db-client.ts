@@ -1,5 +1,5 @@
 import { db } from "./turso";
-import { users, employees, payslips } from "../db/schema";
+import { users, employees, payslips, yearEndAdjustments } from "../db/schema";
 import { eq, and, like, or, count, desc, sum } from "drizzle-orm";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
@@ -20,6 +20,18 @@ export type CreatePayslipParams = Omit<
 export type UpdatePayslipParams = Partial<CreatePayslipParams>;
 
 export interface PayslipWithEmployee extends Payslip {
+  employeeName: string;
+  employeeNumber: string;
+}
+
+export type YearEndAdjustment = InferSelectModel<typeof yearEndAdjustments>;
+export type CreateYearEndAdjustmentParams = Omit<
+  InferInsertModel<typeof yearEndAdjustments>,
+  "id" | "createdAt" | "updatedAt"
+>;
+export type UpdateYearEndAdjustmentParams = Partial<CreateYearEndAdjustmentParams>;
+
+export interface YearEndAdjustmentWithEmployee extends YearEndAdjustment {
   employeeName: string;
   employeeNumber: string;
 }
@@ -615,4 +627,183 @@ export async function getRecentPayslips(
     ...row,
     employeeName: `${row.employeeName} ${row.employeeFirstName}`,
   }));
+}
+
+// ========== 年末調整操作 ==========
+
+/**
+ * 年末調整一覧取得（従業員名JOINつき）
+ */
+export async function getYearEndAdjustments(options?: {
+  adjustmentYear?: number;
+  status?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<{ data: YearEndAdjustmentWithEmployee[]; total: number }> {
+  const { adjustmentYear, status, limit = 20, offset = 0 } = options ?? {};
+
+  const conditions = [];
+
+  if (adjustmentYear) {
+    conditions.push(eq(yearEndAdjustments.adjustmentYear, adjustmentYear));
+  }
+  if (status) {
+    conditions.push(
+      eq(yearEndAdjustments.status, status as "draft" | "submitted" | "completed")
+    );
+  }
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [data, totalResult] = await Promise.all([
+    db
+      .select({
+        id: yearEndAdjustments.id,
+        employeeId: yearEndAdjustments.employeeId,
+        adjustmentYear: yearEndAdjustments.adjustmentYear,
+        basicDeduction: yearEndAdjustments.basicDeduction,
+        spouseDeduction: yearEndAdjustments.spouseDeduction,
+        dependentDeduction: yearEndAdjustments.dependentDeduction,
+        socialInsuranceDeduction: yearEndAdjustments.socialInsuranceDeduction,
+        lifeInsuranceDeduction: yearEndAdjustments.lifeInsuranceDeduction,
+        earthquakeInsuranceDeduction: yearEndAdjustments.earthquakeInsuranceDeduction,
+        adjustmentAmount: yearEndAdjustments.adjustmentAmount,
+        status: yearEndAdjustments.status,
+        createdAt: yearEndAdjustments.createdAt,
+        updatedAt: yearEndAdjustments.updatedAt,
+        employeeName: employees.lastName,
+        employeeFirstName: employees.firstName,
+        employeeNumber: employees.employeeNumber,
+      })
+      .from(yearEndAdjustments)
+      .innerJoin(employees, eq(yearEndAdjustments.employeeId, employees.id))
+      .where(where)
+      .orderBy(desc(yearEndAdjustments.adjustmentYear), desc(yearEndAdjustments.id))
+      .limit(limit)
+      .offset(offset),
+    db.select({ count: count() }).from(yearEndAdjustments).where(where),
+  ]);
+
+  return {
+    data: data.map((row) => ({
+      ...row,
+      employeeName: `${row.employeeName} ${row.employeeFirstName}`,
+    })),
+    total: totalResult[0].count,
+  };
+}
+
+/**
+ * 年末調整詳細取得
+ */
+export async function getYearEndAdjustmentById(
+  id: number
+): Promise<YearEndAdjustmentWithEmployee | null> {
+  const result = await db
+    .select({
+      id: yearEndAdjustments.id,
+      employeeId: yearEndAdjustments.employeeId,
+      adjustmentYear: yearEndAdjustments.adjustmentYear,
+      basicDeduction: yearEndAdjustments.basicDeduction,
+      spouseDeduction: yearEndAdjustments.spouseDeduction,
+      dependentDeduction: yearEndAdjustments.dependentDeduction,
+      socialInsuranceDeduction: yearEndAdjustments.socialInsuranceDeduction,
+      lifeInsuranceDeduction: yearEndAdjustments.lifeInsuranceDeduction,
+      earthquakeInsuranceDeduction: yearEndAdjustments.earthquakeInsuranceDeduction,
+      adjustmentAmount: yearEndAdjustments.adjustmentAmount,
+      status: yearEndAdjustments.status,
+      createdAt: yearEndAdjustments.createdAt,
+      updatedAt: yearEndAdjustments.updatedAt,
+      employeeName: employees.lastName,
+      employeeFirstName: employees.firstName,
+      employeeNumber: employees.employeeNumber,
+    })
+    .from(yearEndAdjustments)
+    .innerJoin(employees, eq(yearEndAdjustments.employeeId, employees.id))
+    .where(eq(yearEndAdjustments.id, id))
+    .limit(1);
+
+  if (!result[0]) return null;
+
+  const row = result[0];
+  return {
+    ...row,
+    employeeName: `${row.employeeName} ${row.employeeFirstName}`,
+  };
+}
+
+/**
+ * 年末調整登録
+ */
+export async function createYearEndAdjustment(
+  params: CreateYearEndAdjustmentParams
+): Promise<YearEndAdjustment> {
+  const result = await db
+    .insert(yearEndAdjustments)
+    .values({ ...params })
+    .returning();
+
+  return result[0];
+}
+
+/**
+ * 年末調整更新
+ */
+export async function updateYearEndAdjustment(
+  id: number,
+  params: UpdateYearEndAdjustmentParams
+): Promise<YearEndAdjustment> {
+  const result = await db
+    .update(yearEndAdjustments)
+    .set({
+      ...params,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(yearEndAdjustments.id, id))
+    .returning();
+
+  return result[0];
+}
+
+/**
+ * 年間社会保険料集計（対象従業員・対象年度の全payslipsから）
+ */
+export async function getAnnualSocialInsurance(
+  employeeId: number,
+  year: number
+): Promise<number> {
+  const result = await db
+    .select({
+      total: sum(payslips.healthInsurance),
+      totalPension: sum(payslips.pensionInsurance),
+      totalEmployment: sum(payslips.employmentInsurance),
+    })
+    .from(payslips)
+    .where(
+      and(eq(payslips.employeeId, employeeId), eq(payslips.workYear, year))
+    );
+
+  const row = result[0];
+  return (
+    Number(row.total ?? 0) +
+    Number(row.totalPension ?? 0) +
+    Number(row.totalEmployment ?? 0)
+  );
+}
+
+/**
+ * 年間所得税集計
+ */
+export async function getAnnualIncomeTax(
+  employeeId: number,
+  year: number
+): Promise<number> {
+  const result = await db
+    .select({ total: sum(payslips.incomeTax) })
+    .from(payslips)
+    .where(
+      and(eq(payslips.employeeId, employeeId), eq(payslips.workYear, year))
+    );
+
+  return Number(result[0].total ?? 0);
 }
