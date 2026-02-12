@@ -8,6 +8,7 @@ import SignUp from "./pages/SignUp";
 import Dashboard from "./pages/Dashboard";
 import EmployeeList from "./pages/employees/EmployeeList";
 import PayslipCreate from "./pages/payslips/PayslipCreate";
+import PayslipList from "./pages/payslips/PayslipList";
 
 // 認証が必要なルートを保護するコンポーネント
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -97,7 +98,7 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AppLayout>
-                    <div>給与明細一覧ページ（実装予定）</div>
+                    <PayslipList />
                   </AppLayout>
                 </ProtectedRoute>
               }

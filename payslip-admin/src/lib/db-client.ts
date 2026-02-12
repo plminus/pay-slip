@@ -1,6 +1,6 @@
 import { db } from "./turso";
 import { users, employees, payslips } from "../db/schema";
-import { eq, and, like, or, count } from "drizzle-orm";
+import { eq, and, like, or, count, desc, sum } from "drizzle-orm";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
 // ========== 型定義 ==========
@@ -17,6 +17,12 @@ export type CreatePayslipParams = Omit<
   InferInsertModel<typeof payslips>,
   "id" | "createdAt" | "updatedAt"
 >;
+export type UpdatePayslipParams = Partial<CreatePayslipParams>;
+
+export interface PayslipWithEmployee extends Payslip {
+  employeeName: string;
+  employeeNumber: string;
+}
 
 export interface CreateUserParams {
   email: string;
@@ -269,4 +275,236 @@ export async function checkDuplicatePayslip(
     );
 
   return result[0].count > 0;
+}
+
+/**
+ * 給与明細一覧取得（従業員名JOINつき）
+ */
+export async function getPayslips(options?: {
+  employeeId?: number;
+  workYear?: number;
+  workMonth?: number;
+  status?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<{ data: PayslipWithEmployee[]; total: number }> {
+  const {
+    employeeId,
+    workYear,
+    workMonth,
+    status,
+    limit = 20,
+    offset = 0,
+  } = options ?? {};
+
+  const conditions = [];
+
+  if (employeeId) {
+    conditions.push(eq(payslips.employeeId, employeeId));
+  }
+  if (workYear) {
+    conditions.push(eq(payslips.workYear, workYear));
+  }
+  if (workMonth) {
+    conditions.push(eq(payslips.workMonth, workMonth));
+  }
+  if (status) {
+    conditions.push(eq(payslips.status, status as "draft" | "approved" | "paid"));
+  }
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [data, totalResult] = await Promise.all([
+    db
+      .select({
+        id: payslips.id,
+        employeeId: payslips.employeeId,
+        paymentDate: payslips.paymentDate,
+        workYear: payslips.workYear,
+        workMonth: payslips.workMonth,
+        baseSalary: payslips.baseSalary,
+        overtimePay: payslips.overtimePay,
+        nighttimePay: payslips.nighttimePay,
+        holidayPay: payslips.holidayPay,
+        transportAllowance: payslips.transportAllowance,
+        housingAllowance: payslips.housingAllowance,
+        familyAllowance: payslips.familyAllowance,
+        otherAllowances: payslips.otherAllowances,
+        totalPayment: payslips.totalPayment,
+        healthInsurance: payslips.healthInsurance,
+        pensionInsurance: payslips.pensionInsurance,
+        employmentInsurance: payslips.employmentInsurance,
+        incomeTax: payslips.incomeTax,
+        residentTax: payslips.residentTax,
+        otherDeductions: payslips.otherDeductions,
+        totalDeduction: payslips.totalDeduction,
+        netPayment: payslips.netPayment,
+        workDays: payslips.workDays,
+        paidLeaveDays: payslips.paidLeaveDays,
+        absentDays: payslips.absentDays,
+        overtimeHours: payslips.overtimeHours,
+        nighttimeHours: payslips.nighttimeHours,
+        holidayWorkHours: payslips.holidayWorkHours,
+        notes: payslips.notes,
+        status: payslips.status,
+        createdAt: payslips.createdAt,
+        updatedAt: payslips.updatedAt,
+        employeeName: employees.lastName,
+        employeeFirstName: employees.firstName,
+        employeeNumber: employees.employeeNumber,
+      })
+      .from(payslips)
+      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+      .where(where)
+      .orderBy(desc(payslips.workYear), desc(payslips.workMonth), desc(payslips.id))
+      .limit(limit)
+      .offset(offset),
+    db.select({ count: count() }).from(payslips).where(where),
+  ]);
+
+  return {
+    data: data.map((row) => ({
+      ...row,
+      employeeName: `${row.employeeName} ${row.employeeFirstName}`,
+    })),
+    total: totalResult[0].count,
+  };
+}
+
+/**
+ * 給与明細詳細取得
+ */
+export async function getPayslipById(
+  id: number
+): Promise<PayslipWithEmployee | null> {
+  const result = await db
+    .select({
+      id: payslips.id,
+      employeeId: payslips.employeeId,
+      paymentDate: payslips.paymentDate,
+      workYear: payslips.workYear,
+      workMonth: payslips.workMonth,
+      baseSalary: payslips.baseSalary,
+      overtimePay: payslips.overtimePay,
+      nighttimePay: payslips.nighttimePay,
+      holidayPay: payslips.holidayPay,
+      transportAllowance: payslips.transportAllowance,
+      housingAllowance: payslips.housingAllowance,
+      familyAllowance: payslips.familyAllowance,
+      otherAllowances: payslips.otherAllowances,
+      totalPayment: payslips.totalPayment,
+      healthInsurance: payslips.healthInsurance,
+      pensionInsurance: payslips.pensionInsurance,
+      employmentInsurance: payslips.employmentInsurance,
+      incomeTax: payslips.incomeTax,
+      residentTax: payslips.residentTax,
+      otherDeductions: payslips.otherDeductions,
+      totalDeduction: payslips.totalDeduction,
+      netPayment: payslips.netPayment,
+      workDays: payslips.workDays,
+      paidLeaveDays: payslips.paidLeaveDays,
+      absentDays: payslips.absentDays,
+      overtimeHours: payslips.overtimeHours,
+      nighttimeHours: payslips.nighttimeHours,
+      holidayWorkHours: payslips.holidayWorkHours,
+      notes: payslips.notes,
+      status: payslips.status,
+      createdAt: payslips.createdAt,
+      updatedAt: payslips.updatedAt,
+      employeeName: employees.lastName,
+      employeeFirstName: employees.firstName,
+      employeeNumber: employees.employeeNumber,
+    })
+    .from(payslips)
+    .innerJoin(employees, eq(payslips.employeeId, employees.id))
+    .where(eq(payslips.id, id))
+    .limit(1);
+
+  if (!result[0]) return null;
+
+  const row = result[0];
+  return {
+    ...row,
+    employeeName: `${row.employeeName} ${row.employeeFirstName}`,
+  };
+}
+
+/**
+ * 給与明細更新
+ */
+export async function updatePayslip(
+  id: number,
+  params: UpdatePayslipParams
+): Promise<Payslip> {
+  const result = await db
+    .update(payslips)
+    .set({
+      ...params,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(payslips.id, id))
+    .returning();
+
+  return result[0];
+}
+
+/**
+ * ステータス変更
+ */
+export async function updatePayslipStatus(
+  id: number,
+  status: "draft" | "approved" | "paid"
+): Promise<void> {
+  await db
+    .update(payslips)
+    .set({
+      status,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(payslips.id, id));
+}
+
+/**
+ * 給与明細削除（下書きのみ）
+ */
+export async function deletePayslip(id: number): Promise<void> {
+  await db.delete(payslips).where(and(eq(payslips.id, id), eq(payslips.status, "draft")));
+}
+
+/**
+ * 月別集計
+ */
+export async function getMonthlyPayslipSummary(
+  workYear: number,
+  workMonth: number
+): Promise<{
+  totalPayment: number;
+  totalDeduction: number;
+  totalNetPayment: number;
+  count: number;
+}> {
+  const where = and(
+    eq(payslips.workYear, workYear),
+    eq(payslips.workMonth, workMonth)
+  );
+
+  const [summaryResult, countResult] = await Promise.all([
+    db
+      .select({
+        totalPayment: sum(payslips.totalPayment),
+        totalDeduction: sum(payslips.totalDeduction),
+        totalNetPayment: sum(payslips.netPayment),
+      })
+      .from(payslips)
+      .where(where),
+    db.select({ count: count() }).from(payslips).where(where),
+  ]);
+
+  const summary = summaryResult[0];
+  return {
+    totalPayment: Number(summary.totalPayment ?? 0),
+    totalDeduction: Number(summary.totalDeduction ?? 0),
+    totalNetPayment: Number(summary.totalNetPayment ?? 0),
+    count: countResult[0].count,
+  };
 }
