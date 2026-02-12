@@ -1,10 +1,12 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { TooltipProvider } from "./components/ui/tooltip";
+import { Toaster } from "sonner";
 import AppLayout from "./components/AppLayout";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import Dashboard from "./pages/Dashboard";
+import EmployeeList from "./pages/employees/EmployeeList";
 
 // 認証が必要なルートを保護するコンポーネント
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -84,7 +86,7 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AppLayout>
-                    <div>従業員管理ページ（実装予定）</div>
+                    <EmployeeList />
                   </AppLayout>
                 </ProtectedRoute>
               }
@@ -130,6 +132,7 @@ function App() {
               }
             />
           </Routes>
+          <Toaster richColors position="top-right" />
         </TooltipProvider>
       </AuthProvider>
     </Router>

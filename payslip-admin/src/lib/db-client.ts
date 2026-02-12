@@ -1,6 +1,16 @@
 import { db } from "./turso";
-import { users } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { users, employees } from "../db/schema";
+import { eq, and, like, or, count } from "drizzle-orm";
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
+
+// ========== 型定義 ==========
+
+export type Employee = InferSelectModel<typeof employees>;
+export type CreateEmployeeParams = Omit<
+  InferInsertModel<typeof employees>,
+  "id" | "createdAt" | "updatedAt"
+>;
+export type UpdateEmployeeParams = Partial<CreateEmployeeParams>;
 
 export interface CreateUserParams {
   email: string;
@@ -9,6 +19,8 @@ export interface CreateUserParams {
   role?: "admin" | "employee";
 }
 
+// ========== ユーザー操作 ==========
+
 /**
  * 新しいユーザーをデータベースに作成
  */
@@ -16,12 +28,15 @@ export async function createUser(params: CreateUserParams) {
   const { email, displayName, firebaseUid, role = "employee" } = params;
 
   try {
-    const result = await db.insert(users).values({
-      email,
-      displayName,
-      firebaseUid,
-      role,
-    }).returning();
+    const result = await db
+      .insert(users)
+      .values({
+        email,
+        displayName,
+        firebaseUid,
+        role,
+      })
+      .returning();
 
     return result[0];
   } catch (error) {
@@ -64,4 +79,148 @@ export async function getUserByEmail(email: string) {
     console.error("Failed to get user by email:", error);
     throw error;
   }
+}
+
+// ========== 従業員操作 ==========
+
+/**
+ * 従業員一覧取得（フィルタ・ページネーション対応）
+ */
+export async function getEmployees(options?: {
+  department?: string;
+  isActive?: boolean;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<{ data: Employee[]; total: number }> {
+  const { department, isActive, search, limit = 20, offset = 0 } = options ?? {};
+
+  const conditions = [];
+
+  if (department) {
+    conditions.push(eq(employees.department, department));
+  }
+
+  if (isActive !== undefined) {
+    conditions.push(eq(employees.isActive, isActive));
+  }
+
+  if (search) {
+    const pattern = `%${search}%`;
+    conditions.push(
+      or(
+        like(employees.employeeNumber, pattern),
+        like(employees.lastName, pattern),
+        like(employees.firstName, pattern),
+        like(employees.lastNameKana, pattern),
+        like(employees.firstNameKana, pattern)
+      )
+    );
+  }
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [data, totalResult] = await Promise.all([
+    db
+      .select()
+      .from(employees)
+      .where(where)
+      .limit(limit)
+      .offset(offset)
+      .orderBy(employees.employeeNumber),
+    db
+      .select({ count: count() })
+      .from(employees)
+      .where(where),
+  ]);
+
+  return { data, total: totalResult[0].count };
+}
+
+/**
+ * 従業員詳細取得
+ */
+export async function getEmployeeById(id: number): Promise<Employee | null> {
+  const result = await db
+    .select()
+    .from(employees)
+    .where(eq(employees.id, id))
+    .limit(1);
+
+  return result[0] || null;
+}
+
+/**
+ * 社員番号の重複チェック
+ */
+export async function getEmployeeByNumber(
+  employeeNumber: string
+): Promise<Employee | null> {
+  const result = await db
+    .select()
+    .from(employees)
+    .where(eq(employees.employeeNumber, employeeNumber))
+    .limit(1);
+
+  return result[0] || null;
+}
+
+/**
+ * 従業員登録
+ */
+export async function createEmployee(
+  params: CreateEmployeeParams
+): Promise<Employee> {
+  const result = await db
+    .insert(employees)
+    .values({
+      ...params,
+    })
+    .returning();
+
+  return result[0];
+}
+
+/**
+ * 従業員更新
+ */
+export async function updateEmployee(
+  id: number,
+  params: UpdateEmployeeParams
+): Promise<Employee> {
+  const result = await db
+    .update(employees)
+    .set({
+      ...params,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(employees.id, id))
+    .returning();
+
+  return result[0];
+}
+
+/**
+ * 従業員無効化（論理削除）
+ */
+export async function deactivateEmployee(id: number): Promise<void> {
+  await db
+    .update(employees)
+    .set({
+      isActive: false,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(employees.id, id));
+}
+
+/**
+ * アクティブ従業員数
+ */
+export async function getActiveEmployeeCount(): Promise<number> {
+  const result = await db
+    .select({ count: count() })
+    .from(employees)
+    .where(eq(employees.isActive, true));
+
+  return result[0].count;
 }
