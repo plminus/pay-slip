@@ -1,6 +1,6 @@
 import { db } from "./turso";
-import { users, employees, payslips, yearEndAdjustments } from "../db/schema";
-import { eq, and, like, or, count, desc, sum } from "drizzle-orm";
+import { users, employees, payslips, yearEndAdjustments, insuranceRates } from "../db/schema";
+import { eq, and, like, or, count, desc, sum, lte, gte, isNull } from "drizzle-orm";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
 // ========== 型定義 ==========
@@ -25,6 +25,13 @@ export interface PayslipWithEmployee extends Payslip {
 }
 
 export type YearEndAdjustment = InferSelectModel<typeof yearEndAdjustments>;
+
+export type InsuranceRate = InferSelectModel<typeof insuranceRates>;
+export type CreateInsuranceRateParams = Omit<
+  InferInsertModel<typeof insuranceRates>,
+  "id" | "createdAt"
+>;
+export type UpdateInsuranceRateParams = Partial<CreateInsuranceRateParams>;
 export type CreateYearEndAdjustmentParams = Omit<
   InferInsertModel<typeof yearEndAdjustments>,
   "id" | "createdAt" | "updatedAt"
@@ -806,4 +813,83 @@ export async function getAnnualIncomeTax(
     );
 
   return Number(result[0].total ?? 0);
+}
+
+// ========== 保険料率操作 ==========
+
+/**
+ * 保険料率一覧取得（適用開始日の降順）
+ */
+export async function getInsuranceRates(): Promise<InsuranceRate[]> {
+  return db
+    .select()
+    .from(insuranceRates)
+    .orderBy(desc(insuranceRates.effectiveFrom));
+}
+
+/**
+ * 現在有効な保険料率取得
+ */
+export async function getCurrentInsuranceRate(): Promise<InsuranceRate | null> {
+  const today = new Date().toISOString().split("T")[0];
+
+  const result = await db
+    .select()
+    .from(insuranceRates)
+    .where(
+      and(
+        lte(insuranceRates.effectiveFrom, today),
+        or(
+          isNull(insuranceRates.effectiveTo),
+          gte(insuranceRates.effectiveTo!, today)
+        )
+      )
+    )
+    .orderBy(desc(insuranceRates.effectiveFrom))
+    .limit(1);
+
+  return result[0] || null;
+}
+
+/**
+ * 保険料率登録
+ */
+export async function createInsuranceRate(
+  params: CreateInsuranceRateParams
+): Promise<InsuranceRate> {
+  const result = await db
+    .insert(insuranceRates)
+    .values({ ...params })
+    .returning();
+
+  return result[0];
+}
+
+/**
+ * 保険料率更新
+ */
+export async function updateInsuranceRate(
+  id: number,
+  params: UpdateInsuranceRateParams
+): Promise<InsuranceRate> {
+  const result = await db
+    .update(insuranceRates)
+    .set({ ...params })
+    .where(eq(insuranceRates.id, id))
+    .returning();
+
+  return result[0];
+}
+
+/**
+ * ユーザープロフィール更新
+ */
+export async function updateUserProfile(
+  id: number,
+  params: { displayName?: string; email?: string }
+): Promise<void> {
+  await db
+    .update(users)
+    .set(params)
+    .where(eq(users.id, id));
 }

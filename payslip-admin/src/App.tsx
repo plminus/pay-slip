@@ -11,6 +11,7 @@ import PayslipCreate from "./pages/payslips/PayslipCreate";
 import PayslipList from "./pages/payslips/PayslipList";
 import YearEndAdjustmentList from "./pages/year-end-adjustment/YearEndAdjustmentList";
 import YearEndAdjustmentForm from "./pages/year-end-adjustment/YearEndAdjustmentForm";
+import Settings from "./pages/settings/Settings";
 
 // 認証が必要なルートを保護するコンポーネント
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -150,7 +151,7 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AppLayout>
-                    <div>設定ページ（実装予定）</div>
+                    <Settings />
                   </AppLayout>
                 </ProtectedRoute>
               }
