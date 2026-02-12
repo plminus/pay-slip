@@ -508,3 +508,111 @@ export async function getMonthlyPayslipSummary(
     count: countResult[0].count,
   };
 }
+
+// ========== ダッシュボード操作 ==========
+
+/**
+ * ダッシュボード統計取得
+ */
+export async function getDashboardStats(): Promise<{
+  activeEmployeeCount: number;
+  currentMonthPayslipCount: number;
+  draftPayslipCount: number;
+  currentMonthTotalPayment: number;
+}> {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+
+  const [activeCount, currentMonthResult, draftCount, totalPaymentResult] =
+    await Promise.all([
+      db
+        .select({ count: count() })
+        .from(employees)
+        .where(eq(employees.isActive, true)),
+      db
+        .select({ count: count() })
+        .from(payslips)
+        .where(
+          and(
+            eq(payslips.workYear, currentYear),
+            eq(payslips.workMonth, currentMonth)
+          )
+        ),
+      db
+        .select({ count: count() })
+        .from(payslips)
+        .where(eq(payslips.status, "draft")),
+      db
+        .select({ total: sum(payslips.totalPayment) })
+        .from(payslips)
+        .where(
+          and(
+            eq(payslips.workYear, currentYear),
+            eq(payslips.workMonth, currentMonth)
+          )
+        ),
+    ]);
+
+  return {
+    activeEmployeeCount: activeCount[0].count,
+    currentMonthPayslipCount: currentMonthResult[0].count,
+    draftPayslipCount: draftCount[0].count,
+    currentMonthTotalPayment: Number(totalPaymentResult[0].total ?? 0),
+  };
+}
+
+/**
+ * 最近の給与明細取得
+ */
+export async function getRecentPayslips(
+  limit: number = 5
+): Promise<PayslipWithEmployee[]> {
+  const data = await db
+    .select({
+      id: payslips.id,
+      employeeId: payslips.employeeId,
+      paymentDate: payslips.paymentDate,
+      workYear: payslips.workYear,
+      workMonth: payslips.workMonth,
+      baseSalary: payslips.baseSalary,
+      overtimePay: payslips.overtimePay,
+      nighttimePay: payslips.nighttimePay,
+      holidayPay: payslips.holidayPay,
+      transportAllowance: payslips.transportAllowance,
+      housingAllowance: payslips.housingAllowance,
+      familyAllowance: payslips.familyAllowance,
+      otherAllowances: payslips.otherAllowances,
+      totalPayment: payslips.totalPayment,
+      healthInsurance: payslips.healthInsurance,
+      pensionInsurance: payslips.pensionInsurance,
+      employmentInsurance: payslips.employmentInsurance,
+      incomeTax: payslips.incomeTax,
+      residentTax: payslips.residentTax,
+      otherDeductions: payslips.otherDeductions,
+      totalDeduction: payslips.totalDeduction,
+      netPayment: payslips.netPayment,
+      workDays: payslips.workDays,
+      paidLeaveDays: payslips.paidLeaveDays,
+      absentDays: payslips.absentDays,
+      overtimeHours: payslips.overtimeHours,
+      nighttimeHours: payslips.nighttimeHours,
+      holidayWorkHours: payslips.holidayWorkHours,
+      notes: payslips.notes,
+      status: payslips.status,
+      createdAt: payslips.createdAt,
+      updatedAt: payslips.updatedAt,
+      employeeName: employees.lastName,
+      employeeFirstName: employees.firstName,
+      employeeNumber: employees.employeeNumber,
+    })
+    .from(payslips)
+    .innerJoin(employees, eq(payslips.employeeId, employees.id))
+    .orderBy(desc(payslips.createdAt))
+    .limit(limit);
+
+  return data.map((row) => ({
+    ...row,
+    employeeName: `${row.employeeName} ${row.employeeFirstName}`,
+  }));
+}
