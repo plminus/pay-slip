@@ -82,26 +82,35 @@ export default function InsuranceRateSettings() {
     setDialogOpen(true);
   };
 
+  const toPercent = (v: number) => parseFloat((v * 100).toFixed(4));
+
   const openEditDialog = (rate: InsuranceRate) => {
     setEditTarget(rate);
     form.reset({
       effectiveFrom: rate.effectiveFrom,
       effectiveTo: rate.effectiveTo ?? "",
-      healthInsuranceRate: rate.healthInsuranceRate,
-      healthInsuranceEmployeeRate: rate.healthInsuranceEmployeeRate,
-      pensionInsuranceRate: rate.pensionInsuranceRate,
-      pensionInsuranceEmployeeRate: rate.pensionInsuranceEmployeeRate,
-      employmentInsuranceEmployeeRate: rate.employmentInsuranceEmployeeRate,
-      employmentInsuranceEmployerRate: rate.employmentInsuranceEmployerRate,
+      healthInsuranceRate: toPercent(rate.healthInsuranceRate),
+      healthInsuranceEmployeeRate: toPercent(rate.healthInsuranceEmployeeRate),
+      pensionInsuranceRate: toPercent(rate.pensionInsuranceRate),
+      pensionInsuranceEmployeeRate: toPercent(rate.pensionInsuranceEmployeeRate),
+      employmentInsuranceEmployeeRate: toPercent(rate.employmentInsuranceEmployeeRate),
+      employmentInsuranceEmployerRate: toPercent(rate.employmentInsuranceEmployerRate),
     });
     setDialogOpen(true);
   };
 
   const onSubmit = async (values: InsuranceRateValues) => {
     try {
+      const toDecimal = (v: number) => parseFloat((v / 100).toFixed(6));
       const params = {
-        ...values,
+        effectiveFrom: values.effectiveFrom,
         effectiveTo: values.effectiveTo || null,
+        healthInsuranceRate: toDecimal(values.healthInsuranceRate),
+        healthInsuranceEmployeeRate: toDecimal(values.healthInsuranceEmployeeRate),
+        pensionInsuranceRate: toDecimal(values.pensionInsuranceRate),
+        pensionInsuranceEmployeeRate: toDecimal(values.pensionInsuranceEmployeeRate),
+        employmentInsuranceEmployeeRate: toDecimal(values.employmentInsuranceEmployeeRate),
+        employmentInsuranceEmployerRate: toDecimal(values.employmentInsuranceEmployerRate),
       };
 
       if (editTarget) {
@@ -286,12 +295,12 @@ export default function InsuranceRateSettings() {
                   name="healthInsuranceRate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>健康保険料率（全体）</FormLabel>
+                      <FormLabel>健康保険料率（全体）%</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
-                          step="0.0001"
-                          placeholder="例: 0.1003"
+                          step="0.01"
+                          placeholder="例: 10.03"
                           {...field}
                           onChange={(e) =>
                             field.onChange(parseFloat(e.target.value) || 0)
@@ -307,12 +316,12 @@ export default function InsuranceRateSettings() {
                   name="healthInsuranceEmployeeRate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>健康保険料率（従業員）</FormLabel>
+                      <FormLabel>健康保険料率（従業員）%</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
-                          step="0.0001"
-                          placeholder="例: 0.05015"
+                          step="0.01"
+                          placeholder="例: 5.015"
                           {...field}
                           onChange={(e) =>
                             field.onChange(parseFloat(e.target.value) || 0)
@@ -331,12 +340,12 @@ export default function InsuranceRateSettings() {
                   name="pensionInsuranceRate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>厚生年金保険料率（全体）</FormLabel>
+                      <FormLabel>厚生年金保険料率（全体）%</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
-                          step="0.0001"
-                          placeholder="例: 0.183"
+                          step="0.01"
+                          placeholder="例: 18.3"
                           {...field}
                           onChange={(e) =>
                             field.onChange(parseFloat(e.target.value) || 0)
@@ -352,12 +361,12 @@ export default function InsuranceRateSettings() {
                   name="pensionInsuranceEmployeeRate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>厚生年金保険料率（従業員）</FormLabel>
+                      <FormLabel>厚生年金保険料率（従業員）%</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
-                          step="0.0001"
-                          placeholder="例: 0.0915"
+                          step="0.01"
+                          placeholder="例: 9.15"
                           {...field}
                           onChange={(e) =>
                             field.onChange(parseFloat(e.target.value) || 0)
@@ -376,12 +385,12 @@ export default function InsuranceRateSettings() {
                   name="employmentInsuranceEmployeeRate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>雇用保険料率（従業員）</FormLabel>
+                      <FormLabel>雇用保険料率（従業員）%</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
-                          step="0.0001"
-                          placeholder="例: 0.006"
+                          step="0.01"
+                          placeholder="例: 0.6"
                           {...field}
                           onChange={(e) =>
                             field.onChange(parseFloat(e.target.value) || 0)
@@ -397,12 +406,12 @@ export default function InsuranceRateSettings() {
                   name="employmentInsuranceEmployerRate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>雇用保険料率（事業主）</FormLabel>
+                      <FormLabel>雇用保険料率（事業主）%</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
-                          step="0.0001"
-                          placeholder="例: 0.0095"
+                          step="0.01"
+                          placeholder="例: 0.95"
                           {...field}
                           onChange={(e) =>
                             field.onChange(parseFloat(e.target.value) || 0)

@@ -157,3 +157,15 @@ export const yearEndAdjustments = sqliteTable("year_end_adjustments", {
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
 });
+
+// 会社設定（1行のみ）
+export const companySettings = sqliteTable("company_settings", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  paymentDay: integer("payment_day").notNull().default(25), // 支給日（1〜31）
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+  updatedAt: text("updated_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});

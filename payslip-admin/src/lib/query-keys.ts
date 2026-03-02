@@ -25,4 +25,7 @@ export const queryKeys = {
   dashboard: {
     stats: ["dashboard", "stats"] as const,
   },
+  companySettings: {
+    all: ["companySettings"] as const,
+  },
 } as const;

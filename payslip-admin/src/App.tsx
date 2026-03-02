@@ -5,6 +5,7 @@ import { Toaster } from "sonner";
 import AppLayout from "./components/AppLayout";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
+import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
 import EmployeeList from "./pages/employees/EmployeeList";
 import PayslipCreate from "./pages/payslips/PayslipCreate";
@@ -71,6 +72,14 @@ function App() {
               element={
                 <PublicRoute>
                   <SignUp />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/forgot-password"
+              element={
+                <PublicRoute>
+                  <ForgotPassword />
                 </PublicRoute>
               }
             />

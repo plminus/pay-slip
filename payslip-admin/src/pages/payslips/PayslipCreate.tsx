@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -6,6 +6,7 @@ import { payslipCreateSchema } from "@/lib/validators";
 import type { z } from "zod/v4";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useCreatePayslip } from "@/hooks/usePayslips";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { checkDuplicatePayslip, type Employee } from "@/lib/db-client";
 import {
   calculatePayroll,
@@ -58,6 +59,7 @@ export default function PayslipCreate() {
     isActive: true,
     pageSize: 1000,
   });
+  const { data: companySettings } = useCompanySettings();
 
   const form = useForm<PayslipFormInput, unknown, PayslipFormOutput>({
     resolver: zodResolver(payslipCreateSchema),
@@ -84,6 +86,19 @@ export default function PayslipCreate() {
   });
 
   const watchedValues = form.watch();
+
+  // 支給日設定に基づいて paymentDate を自動入力
+  useEffect(() => {
+    if (!companySettings) return;
+    const year = form.getValues("workYear");
+    const month = form.getValues("workMonth");
+    const day = companySettings.paymentDay;
+    // 月の最終日を超えないようにクランプ
+    const lastDay = new Date(year, month, 0).getDate();
+    const clampedDay = Math.min(day, lastDay);
+    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(clampedDay).padStart(2, "0")}`;
+    form.setValue("paymentDate", dateStr);
+  }, [companySettings, watchedValues.workYear, watchedValues.workMonth, form]);
 
   const calculationResult: PayrollCalculationResult | null = useMemo(() => {
     if (!selectedEmployee) return null;
