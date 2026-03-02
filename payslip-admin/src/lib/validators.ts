@@ -80,16 +80,16 @@ export type YearEndAdjustmentValues = z.infer<
   typeof yearEndAdjustmentSchema
 >;
 
-/** 保険料率フォーム */
+/** 保険料率フォーム（%入力: 0〜100） */
 export const insuranceRateSchema = z.object({
   effectiveFrom: z.string().min(1, "適用開始日は必須です"),
   effectiveTo: z.string().optional(),
-  healthInsuranceRate: z.number().min(0).max(1),
-  healthInsuranceEmployeeRate: z.number().min(0).max(1),
-  pensionInsuranceRate: z.number().min(0).max(1),
-  pensionInsuranceEmployeeRate: z.number().min(0).max(1),
-  employmentInsuranceEmployeeRate: z.number().min(0).max(1),
-  employmentInsuranceEmployerRate: z.number().min(0).max(1),
+  healthInsuranceRate: z.number().min(0).max(100),
+  healthInsuranceEmployeeRate: z.number().min(0).max(100),
+  pensionInsuranceRate: z.number().min(0).max(100),
+  pensionInsuranceEmployeeRate: z.number().min(0).max(100),
+  employmentInsuranceEmployeeRate: z.number().min(0).max(100),
+  employmentInsuranceEmployerRate: z.number().min(0).max(100),
 });
 
 export type InsuranceRateValues = z.infer<typeof insuranceRateSchema>;

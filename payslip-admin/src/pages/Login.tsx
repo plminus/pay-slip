@@ -52,7 +52,12 @@ export default function Login() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">パスワード</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">パスワード</Label>
+                <Link to="/forgot-password" className="text-xs text-blue-600 hover:underline">
+                  パスワードをお忘れですか？
+                </Link>
+              </div>
               <Input
                 id="password"
                 type="password"

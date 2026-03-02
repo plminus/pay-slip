@@ -1,5 +1,5 @@
 import { db } from "./turso";
-import { users, employees, payslips, yearEndAdjustments, insuranceRates } from "../db/schema";
+import { users, employees, payslips, yearEndAdjustments, insuranceRates, companySettings } from "../db/schema";
 import { eq, and, like, or, count, desc, sum, lte, gte, isNull } from "drizzle-orm";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
@@ -892,4 +892,47 @@ export async function updateUserProfile(
     .update(users)
     .set(params)
     .where(eq(users.id, id));
+}
+
+// ========== 会社設定操作 ==========
+
+export type CompanySettings = InferSelectModel<typeof companySettings>;
+
+/**
+ * 会社設定取得（1行のみ）
+ */
+export async function getCompanySettings(): Promise<CompanySettings | null> {
+  const result = await db
+    .select()
+    .from(companySettings)
+    .limit(1);
+
+  return result[0] || null;
+}
+
+/**
+ * 会社設定の作成または更新
+ */
+export async function upsertCompanySettings(
+  params: { paymentDay: number }
+): Promise<CompanySettings> {
+  const existing = await getCompanySettings();
+
+  if (existing) {
+    const result = await db
+      .update(companySettings)
+      .set({
+        ...params,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(companySettings.id, existing.id))
+      .returning();
+    return result[0];
+  }
+
+  const result = await db
+    .insert(companySettings)
+    .values(params)
+    .returning();
+  return result[0];
 }
